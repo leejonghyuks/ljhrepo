@@ -34,7 +34,6 @@
         } else {
             const recognition = new SpeechRecognition();
 
-            // [해결책 1] continuous를 false로 설정하여 크롬 중복 버그 차단
             recognition.lang = 'ko-KR';
             recognition.continuous = false; 
             recognition.interimResults = true;
@@ -42,12 +41,10 @@
             let isListening = false; // 사용자가 의도한 작동 상태
             let baseText = '';       // 시작 시점의 기존 텍스트
 
-            // [해결책 2] addEventListener 대신 onclick으로 리스너 중복 등록 방지
             micBtn.onclick = () => {
                 if (!isListening) {
                     isListening = true;
-                    
-                    // [해결책 3] 입력 중이던 한글 조합(IME)을 강제 종료하여 중복 합성 방지
+    
                     contentArea.blur(); 
 
                     baseText = contentArea.value;
@@ -67,7 +64,7 @@
             };
 
             recognition.onstart = () => {
-                micBtn.textContent = '⏹️ 음성 입력 중단';
+                //micBtn.textContent = '⏹️ 음성 입력 중단';
                 statusSpan.textContent = '음성을 듣고 있습니다...';
                 statusSpan.style.color = 'red';
             };
