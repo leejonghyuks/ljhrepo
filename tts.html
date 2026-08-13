@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <title>TTS</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <style>
+        .editor-container {
+            margin: 20px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="editor-container">
+        <button type="button" id="btn-mic">🎙️ 음성 입력 시작</button>
+        <span id="mic-status" style="color: gray;">대기 중</span>
+        <br><br>
+        <textarea id="board-content" rows="10" cols="60" placeholder="내용을 입력하세요..."></textarea>
+    </div>
+
+    <script>
+        const micBtn = document.getElementById('btn-mic');
+        const statusSpan = document.getElementById('mic-status');
+        const contentArea = document.getElementById('board-content');
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (!SpeechRecognition) {
+            alert('현재 브라우저는 음성 인식을 지원하지 않습니다. (Chrome/Edge 권장)');
+        } else {
+            const recognition = new SpeechRecognition();
+
+            // continuous를 true로 설정하여 마이크 세션을 계속 유지 (재시작 팝업 차단)
+            recognition.lang = 'ko-KR';
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            let isListening = false;
+            let baseText = '';
+
+            micBtn.onclick = () => {
+                if (!isListening) {
+                    isListening = true;
+                    contentArea.blur(); // 한글 조합(IME) 간섭 방지
+
+                    baseText = contentArea.value;
+                    if (baseText && !baseText.endsWith(' ') && !baseText.endsWith('\n')) {
+                        baseText += ' ';
+                    }
+                    
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        console.error('이미 실행 중입니다:', e);
+                    }
+                } else {
+                    isListening = false;
+                    recognition.stop();
+                }
+            };
+
+            recognition.onstart = () => {
+                micBtn.textContent = '⏹️ 음성 입력 중단';
+                statusSpan.textContent = '음성을 듣고 있습니다...';
+                statusSpan.style.color = 'red';
+            };
+
+            // 크롬 한국어 중복 입력을 방지하는 전용 이벤트 핸들러
+            recognition.onresult = (event) => {
+                let currentFinal = '';
+                let interimTranscript = '';
+
+                // event.resultIndex부터 시작하여 신규 인식 결과만 처리
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        currentFinal += transcript + ' ';
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+
+                // 확정된 문장을 baseText에 누적
+                if (currentFinal) {
+                    baseText += currentFinal;
+                }
+
+                // 화면 갱신: 기존 텍스트 + 실시간 인식 중인 텍스트
+                contentArea.value = baseText + interimTranscript;
+            };
+
+            recognition.onerror = (event) => {
+                if (event.error !== 'no-speech') {
+                    console.error('Speech recognition error:', event.error);
+                    statusSpan.textContent = `오류 발생: ${event.error}`;
+                }
+            };
+
+            recognition.onend = () => {
+                // 사용자가 직접 중단 버튼을 누른 경우에만 종료 상태로 전환
+                if (!isListening) {
+                    micBtn.textContent = '🎙️ 음성 입력 시작';
+                    statusSpan.textContent = '대기 중';
+                    statusSpan.style.color = 'gray';
+                } else {
+                    // 무음 등으로 인해 브라우저가 세션을 끊은 경우에만 조용히 재연결
+                    try {
+                        recognition.start();
+                    } catch (e) {}
+                }
+            };
+        }
+    </script>
+</body>
+</html>
