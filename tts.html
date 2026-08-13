@@ -16,7 +16,7 @@
 </head>
 <body>
     <div class="editor-container">
-        <button type="button" id="btn-mic">음성 입력 시작</button>
+        <button type="button" id="btn-mic">음성 입력 시작!!</button>
         <span id="mic-status" style="color: gray;">대기 중</span>
         <br><br>
         <textarea id="board-content" rows="10" cols="60" placeholder="내용을 입력하세요..."></textarea>
@@ -34,24 +34,27 @@
         } else {
             const recognition = new SpeechRecognition();
 
+            // [해결책 1] continuous를 false로 설정하여 크롬 중복 버그 차단
             recognition.lang = 'ko-KR';
-            recognition.continuous = true;
+            recognition.continuous = false; 
             recognition.interimResults = true;
 
-            let isListening = false;
-            let baseText = ''; // 음성 입력 시작 시점의 기존 텍스트 (단일 보존)
+            let isListening = false; // 사용자가 의도한 작동 상태
+            let baseText = '';       // 시작 시점의 기존 텍스트
 
+            // [해결책 2] addEventListener 대신 onclick으로 리스너 중복 등록 방지
             micBtn.onclick = () => {
                 if (!isListening) {
                     isListening = true;
-                    contentArea.blur(); // 한글 조합(IME) 간섭 제거
+                    
+                    // [해결책 3] 입력 중이던 한글 조합(IME)을 강제 종료하여 중복 합성 방지
+                    contentArea.blur(); 
 
-                    // [핵심 1] 시작 버튼을 누른 딱 그 순간의 텍스트만 보존합니다.
                     baseText = contentArea.value;
                     if (baseText && !baseText.endsWith(' ') && !baseText.endsWith('\n')) {
                         baseText += ' ';
                     }
-
+                    
                     try {
                         recognition.start();
                     } catch (e) {
@@ -70,42 +73,44 @@
             };
 
             recognition.onresult = (event) => {
-                let sessionFinal = '';
                 let interimTranscript = '';
+                let finalTranscript = '';
 
-                // [핵심 2] 현재 세션(0번부터 끝까지) 전체 결과를 매번 새로 읽습니다.
                 for (let i = 0; i < event.results.length; i++) {
                     const transcript = event.results[i][0].transcript;
                     if (event.results[i].isFinal) {
-                        sessionFinal += transcript + ' ';
+                        finalTranscript += transcript;
                     } else {
                         interimTranscript += transcript;
                     }
                 }
 
-                // [핵심 3] baseText 변수를 절대로 여기서 수정(+=)하지 않고 대입만 합니다.
-                // 결과: [시작 시점 텍스트] + [이번 세션 확정 문장] + [실시간 입력 중 문장]
-                contentArea.value = baseText + sessionFinal + interimTranscript;
+                // 확정된 텍스트가 생기면 baseText에 누적
+                if (finalTranscript) {
+                    baseText += finalTranscript + ' ';
+                }
+
+                // 화면 출력 update
+                contentArea.value = baseText + interimTranscript;
             };
 
             recognition.onerror = (event) => {
+                // 단순 무음(no-speech)은 사용자가 끌 때까지 무시
                 if (event.error !== 'no-speech') {
                     console.error('Speech recognition error:', event.error);
                     statusSpan.textContent = `오류 발생: ${event.error}`;
                 }
             };
 
+            // [해결책 4] continuous: false 상태에서 인식 세션이 끝날 때, 
+            // 사용자가 중단 버튼을 누른 게 아니라면 자동으로 다음 세션 재시작
             recognition.onend = () => {
                 if (isListening) {
-                    // 무음으로 인해 브라우저가 자동 재연결할 때만 baseText 업데이트
-                    baseText = contentArea.value;
-                    if (baseText && !baseText.endsWith(' ') && !baseText.endsWith('\n')) {
-                        baseText += ' ';
-                    }
-                    
                     try {
                         recognition.start();
-                    } catch (e) {}
+                    } catch (e) {
+                        // 연속 재시작 예외 처리
+                    }
                 } else {
                     micBtn.textContent = '🎙️ 음성 입력 시작';
                     statusSpan.textContent = '대기 중';
