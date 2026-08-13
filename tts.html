@@ -12,11 +12,15 @@
             border: 1px solid #ccc;
             border-radius: 5px;
         }
+        #btn-stopmic {
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div class="editor-container">
-        <button type="button" id="btn-mic">음성 입력 시작!!</button>
+        <button type="button" id="btn-mic">음성 입력 시작</button>
+        <button type="button" id="btn-stopmic">음성 입력 종료</button>
         <span id="mic-status" style="color: gray;">대기 중</span>
         <br><br>
         <textarea id="board-content" rows="10" cols="60" placeholder="내용을 입력하세요..."></textarea>
@@ -24,6 +28,7 @@
 
     <script>
         const micBtn = document.getElementById('btn-mic');
+        const stopmicBtn = document.getElementById('btn-stopmic');
         const statusSpan = document.getElementById('mic-status');
         const contentArea = document.getElementById('board-content');
 
@@ -44,7 +49,8 @@
             micBtn.onclick = () => {
                 if (!isListening) {
                     isListening = true;
-    
+                    micBtn.style.display = 'none';
+                    stopmicBtn.style.display = 'block';
                     contentArea.blur(); 
 
                     baseText = contentArea.value;
